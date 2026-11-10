@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가이아 프로젝트: 모웨이드 · 팅커로이드 테라포밍 결정기</title>
+<style>
+  :root {
+    --bg: #0d1220; --panel: #171e31; --line: #2a3350; --text: #e8ecf5; --muted: #98a2bd;
+    --accent: #6ea8ff;
+    --blue: #2f7fd6; --red: #d63b2f; --orange: #ee8a1e; --yellow: #f2cf2a;
+    --brown: #8a5a33; --gray: #8b929a; --white: #f4f6f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; line-height: 1.5;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  p { margin: 0 0 12px; }
+  .sub, .hint { color: var(--muted); font-size: .9rem; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  button {
+    font: inherit; color: var(--text); background: #24304f; border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #2c4f9a; border-color: #3d66bf; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .board { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 12px; }
+  .slot {
+    background: #10172a; border: 1px solid var(--line); border-radius: 10px; padding: 8px 2px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+    color: var(--text); min-width: 0;
+  }
+  .slot.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .slot .num { color: var(--muted); font-size: .8rem; }
+  .slot .name { font-size: .78rem; white-space: nowrap; }
+  .slot .who { font-size: .7rem; color: var(--muted); min-height: 2.1em; text-align: center; line-height: 1.05; }
+  .cube { width: 26px; height: 26px; border-radius: 6px; border: 2px solid rgba(255,255,255,.35); }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.45); vertical-align: -2px; margin-right: 6px; }
+
+  .seat { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .seat label { width: 64px; color: var(--muted); font-size: .9rem; flex: none; }
+  select {
+    font: inherit; flex: 1; min-width: 0; background: #10172a; color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px;
+  }
+
+  .result { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 12px; background: #10172a; }
+  .result h3 { margin: 0 0 10px; font-size: 1rem; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .steps { font-weight: 700; margin-bottom: 6px; }
+  .steps.three { color: #ff9c8f; } .steps.one { color: #8fe0a6; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 3px 0; font-size: .95rem; }
+  li small { color: var(--muted); }
+  details { margin-top: 16px; color: var(--muted); font-size: .9rem; }
+  details ol { padding-left: 20px; }
+  @media (max-width: 480px) {
+    .slot .name { font-size: .68rem; } .cube { width: 22px; height: 22px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>모웨이드 · 팅커로이드 테라포밍 결정기</h1>
+  <p class="sub">가이아 프로젝트 확장 「잃어버린 함대」 — 두 종족이 3단계 테라포밍해야 하는 행성 3종을 정합니다. 나머지 기본판 행성은 1단계입니다.</p>
+
+  <section>
+    <h2>1. 테라포밍 보드 (종족 선택 전에 섞기)</h2>
+    <div class="board" id="board"></div>
+    <div class="row">
+      <button class="primary" id="shuffle">무작위로 섞기</button>
+      <span class="hint">실제 큐브로 뽑았다면 두 칸을 차례로 눌러 자리를 맞바꾸세요.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 종족 선택 (턴 순서대로)</h2>
+    <div id="seats"></div>
+    <div class="row">
+      <button id="clear">종족 초기화</button>
+      <span class="hint">인원이 적으면 남는 자리는 「없음」으로 두세요.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. 결과</h2>
+    <div id="results"></div>
+  </section>
+
+  <details>
+    <summary>적용한 규칙</summary>
+    <ol>
+      <li>종족을 고르기 전에 기본판 7색 위성 큐브를 테라포밍 보드 1–7번 칸에 무작위로 놓습니다.</li>
+      <li>게임에 참여한 기본판 종족의 행성 색은 모웨이드/팅커로이드에게 항상 3단계입니다. (둘 다 참여하면 각자 그 색을 받습니다.)</li>
+      <li>3칸이 다 차지 않았다면, 턴 순서대로 보드에 남은 큐브를 낮은 번호부터 가져와 채웁니다. 먼저 가져간 큐브는 다음 플레이어가 가져갈 수 없습니다.</li>
+      <li>큐브를 받은 3색은 3단계, 나머지 4색은 1단계입니다.</li>
+    </ol>
+  </details>
+</main>
+
+<script>
+const COLORS = {
+  blue:   { name: '파랑', planet: '테라' },
+  red:    { name: '빨강', planet: '화산' },
+  orange: { name: '주황', planet: '산화' },
+  yellow: { name: '노랑', planet: '사막' },
+  brown:  { name: '갈색', planet: '늪' },
+  gray:   { name: '회색', planet: '티타늄' },
+  white:  { name: '하양', planet: '얼음' },
+};
+const COLOR_KEYS = Object.keys(COLORS);
+
+const FACTIONS = [
+  { id: 'terrans', name: '테란', color: 'blue' },
+  { id: 'lantids', name: '란티드', color: 'blue' },
+  { id: 'hadsch', name: '하쉬 할라', color: 'red' },
+  { id: 'ivits', name: '아이비츠', color: 'red' },
+  { id: 'geodens', name: '지오덴', color: 'orange' },
+  { id: 'baltaks', name: '발타크', color: 'orange' },
+  { id: 'xenos', name: '제노스', color: 'yellow' },
+  { id: 'gleens', name: '글린', color: 'yellow' },
+  { id: 'taklons', name: '타클론', color: 'brown' },
+  { id: 'ambas', name: '암바스', color: 'brown' },
+  { id: 'firaks', name: '파이락', color: 'gray' },
+  { id: 'bescods', name: '베스코드', color: 'gray' },
+  { id: 'nevlas', name: '네블라', color: 'white' },
+  { id: 'itars', name: '아이타', color: 'white' },
+  { id: 'moweyds', name: '모웨이드', special: true },
+  { id: 'tinkeroids', name: '팅커로이드', special: true },
+  { id: 'darkanians', name: '다카니안' },
+  { id: 'giants', name: '스페이스 자이언트' },
+];
+const BY_ID = Object.fromEntries(FACTIONS.map(f => [f.id, f]));
+
+/**
+ * order: 보드 1–7번 칸의 색 배열, seats: 턴 순서대로의 종족 id 배열('' = 없음).
+ * 반환: 모웨이드/팅커로이드별 { faction, forced: 상대 종족 색, drawn: 보드에서 가져온 색 }
+ */
+function assign(order, seats) {
+  const chosen = seats.map(id => BY_ID[id]).filter(Boolean);
+  const forced = order.filter(c => chosen.some(f => f.color === c));
+  const pool = order.filter(c => !forced.includes(c));
+  return chosen.filter(f => f.special).map(f => {
+    const drawn = [];
+    while (forced.length + drawn.length < 3) drawn.push(pool.shift());
+    return { faction: f, forced: [...forced], drawn };
+  });
+}
+
+function shuffled() {
+  const a = [...COLOR_KEYS];
+  const rnd = new Uint32Array(a.length);
+  crypto.getRandomValues(rnd);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = rnd[i] % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const STORE = 'gaia-tf-state-v1';
+let state = { order: shuffled(), seats: ['', '', '', ''] };
+try {
+  const s = JSON.parse(localStorage.getItem(STORE));
+  if (s && s.order.length === 7 && COLOR_KEYS.every(c => s.order.includes(c)) && s.seats.length === 4) state = s;
+} catch (e) { /* 저장된 값이 없거나 깨졌으면 새로 시작 */ }
+let selected = null;
+
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const dot = c => { const d = el('span', 'dot'); d.style.background = `var(--${c})`; return d; };
+
+function render() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* 저장 불가 환경 */ }
+  const res = assign(state.order, state.seats);
+
+  const board = document.getElementById('board');
+  board.replaceChildren(...state.order.map((c, i) => {
+    const b = el('button', 'slot' + (selected === i ? ' sel' : ''));
+    const cube = el('span', 'cube'); cube.style.background = `var(--${c})`;
+    const who = res.filter(r => r.forced.includes(c) || r.drawn.includes(c)).map(r => r.faction.name);
+    b.append(el('span', 'num', i + 1), cube, el('span', 'name', COLORS[c].planet), el('span', 'who', who.join(' ')));
+    b.title = `${i + 1}번 칸: ${COLORS[c].name} (${COLORS[c].planet})`;
+    b.onclick = () => {
+      if (selected === null) selected = i;
+      else { [state.order[selected], state.order[i]] = [state.order[i], state.order[selected]]; selected = null; }
+      render();
+    };
+    return b;
+  }));
+
+  const seats = document.getElementById('seats');
+  seats.replaceChildren(...state.seats.map((id, i) => {
+    const row = el('div', 'seat');
+    const label = el('label', null, `${i + 1}번째`); label.htmlFor = 'seat' + i;
+    const sel = el('select'); sel.id = 'seat' + i;
+    sel.append(new Option('없음', ''));
+    const others = state.seats.filter((_, k) => k !== i).map(x => BY_ID[x]).filter(Boolean);
+    for (const f of FACTIONS) {
+      const o = new Option(f.color ? `${f.name} (${COLORS[f.color].planet})` : f.name, f.id);
+      // 같은 종족, 같은 행성 색의 기본판 종족은 함께 나올 수 없다
+      o.disabled = others.some(x => x.id === f.id || (f.color && x.color === f.color));
+      sel.append(o);
+    }
+    sel.value = id;
+    sel.onchange = () => { state.seats[i] = sel.value; render(); };
+    row.append(label, sel);
+    return row;
+  }));
+
+  const out = document.getElementById('results');
+  if (!res.length) {
+    out.replaceChildren(el('p', 'hint', '모웨이드나 팅커로이드를 선택하면 여기에 결과가 표시됩니다.'));
+    return;
+  }
+  out.replaceChildren(...res.map(r => {
+    const card = el('div', 'result');
+    card.append(el('h3', null, r.faction.name));
+    const cols = el('div', 'cols');
+    const three = [...r.forced, ...r.drawn];
+    const one = state.order.filter(c => !three.includes(c));
+    const list = (title, cls, colors, note) => {
+      const box = el('div');
+      box.append(el('div', 'steps ' + cls, title));
+      const ul = el('ul');
+      for (const c of colors) {
+        const li = el('li');
+        li.append(dot(c), `${COLORS[c].planet} (${COLORS[c].name}) `);
+        if (note) li.append(el('small', null, note(c)));
+        ul.append(li);
+      }
+      box.append(ul);
+      return box;
+    };
+    cols.append(
+      list('3단계', 'three', three, c => r.forced.includes(c) ? '상대 종족' : `보드 ${state.order.indexOf(c) + 1}번`),
+      list('1단계', 'one', one)
+    );
+    card.append(cols);
+    return card;
+  }));
+}
+
+document.getElementById('shuffle').onclick = () => { state.order = shuffled(); selected = null; render(); };
+document.getElementById('clear').onclick = () => { state.seats = ['', '', '', '']; render(); };
+render();
+</script>
+</body>
+</html>
